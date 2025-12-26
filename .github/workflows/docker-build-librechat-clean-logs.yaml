@@ -4,7 +4,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: brown-bnc/librechat-clean-logs
+  ## Image name
+  IMAGE_NAME: brown-ccv/librechat-clean-logs
 
 jobs:
   build_and_push:

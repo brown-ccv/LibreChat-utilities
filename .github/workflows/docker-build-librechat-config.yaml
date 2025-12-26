@@ -4,6 +4,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  ## Image name
   IMAGE_NAME: brown-ccv/librechat-config-file
 
 jobs:
