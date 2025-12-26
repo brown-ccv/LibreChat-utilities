@@ -4,7 +4,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: brown-bnc/librechat-config-file
+  IMAGE_NAME: brown-ccv/librechat-config-file
 
 jobs:
   build_and_push:

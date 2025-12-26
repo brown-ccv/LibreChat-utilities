@@ -29,14 +29,14 @@ A lightweight Alpine-based Docker image that copies the LibreChat configuration 
 ```bash
 docker run -v /path/to/config:/data/config \
   -e CONFIG_PATH=/data/config \
-  ghcr.io/brown-bnc/librechat-config-file:latest
+  ghcr.io/brown-ccv/librechat-config-file:latest
 ```
 
 **Docker Compose:**
 ```yaml
 services:
   config-copier:
-    image: ghcr.io/brown-bnc/librechat-config-file:latest
+    image: ghcr.io/brown-ccv/librechat-config-file:latest
     environment:
       CONFIG_PATH: /data/config
     volumes:
@@ -85,14 +85,14 @@ A scheduled service that automatically cleans old log files from LibreChat direc
 docker run -v /path/to/logs:/data/logs \
   -e LOG_DIR_TO_CLEAN=/data/logs \
   -e DAYS_TO_CLEAN=180 \
-  ghcr.io/brown-bnc/librechat-clean-logs:latest
+  ghcr.io/brown-ccv/librechat-clean-logs:latest
 ```
 
 **Docker Compose:**
 ```yaml
 services:
   log-cleaner:
-    image: ghcr.io/brown-bnc/librechat-clean-logs:latest
+    image: ghcr.io/brown-ccv/librechat-clean-logs:latest
     environment:
       LOG_DIR_TO_CLEAN: /data/logs
       DAYS_TO_CLEAN: 180
