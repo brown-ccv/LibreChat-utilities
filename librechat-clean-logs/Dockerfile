@@ -9,7 +9,7 @@ WORKDIR /app
 # Copy package.json and package-lock.json into the container
 COPY clean_logs_script.sh /app/clean_logs_script.sh
 
-RUN chmod +x /app/clean_script.sh
+RUN chmod +x /app/clean_logs_script.sh
 
 # Define the command to run the application
 CMD ["/app/clean_logs_script.sh"]
