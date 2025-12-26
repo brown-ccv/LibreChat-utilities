@@ -1,4 +1,4 @@
-name: Build and Push Container
+name: Librechat config file - Build and Push Container
 on:  
   workflow_dispatch:
 
