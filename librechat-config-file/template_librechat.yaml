@@ -1,0 +1,289 @@
+# For more information, see the Configuration Guide:
+# https://www.librechat.ai/docs/configuration/librechat_yaml
+
+# Configuration version (required)
+version: 1.2.9
+
+# Cache settings: Set to true to enable caching
+cache: true
+
+# Custom interface configuration
+interface:
+      # mcpServers:
+      #   placeholder: 'MCP Servers'
+        
+      customWelcome: "Hey {{user.name}}! Welcome to LibreChat"
+      
+      # Privacy policy settings
+      privacyPolicy:
+        externalUrl: "https://docs.ccv.brown.edu/ai-tools/"
+        openNewTab: true
+
+      # Terms of service
+      termsOfService:
+        externalUrl: "https://docs.ccv.brown.edu/ai-tools/terms-of-use"
+        openNewTab: true
+        modalAcceptance: true
+        modalTitle: "Terms of Service for Brown-LibreChat"
+        modalContent: |
+          For a comprehensive overview of our policies, usage guidelines, and user responsibilities, please visit the following URL in your browser:
+          https://docs.ccv.brown.edu/ai-tools/terms-of-use
+      endpointsMenu: true
+      modelSelect: true
+      parameters: true
+      sidePanel: true
+      # presets: true
+      prompts: true
+      bookmarks: true
+      multiConvo: false
+      agents: true
+      runCode: false
+
+ocr:
+  mistralModel: "mistral-ocr-2505"   # Model name as deployed in Vertex AI
+  strategy: "vertexai_mistral_ocr"
+
+registration:
+  socialLogins: ['github', 'google', 'discord', 'openid', 'facebook', 'apple']
+
+speech:
+      speechTab:
+        textToSpeech:
+          engineTTS: "external"
+          voice: "nova"
+          languageTTS: "en"
+          automaticPlayback: false
+          playbackRate: 1.0
+          cacheTTS: true
+      stt:
+        azureOpenAI:
+          instanceName: yxu15-m8exsnfh-eastus2
+          apiKey: "${LLAMA_KEY}"
+          deploymentName: 'whisper'
+          apiVersion: '2024-06-01'
+      tts:
+        azureOpenAI:
+          instanceName: yxu15-m8exsnfh-eastus2
+          apiKey: "${LLAMA_KEY}"
+          deploymentName: 'gpt-4o-mini-tts'
+          apiVersion: '2025-03-01-preview'
+          model: 'gpt-4o-mini-tts'
+          voices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+
+endpoints:
+  custom:
+        - name: "Legacy Azure-OpenAI"
+          # A place holder - otherwise it becomes the default (OpenAI) key
+          # Provide the key instead in each "model" block within "litellm/litellm-config.yaml"
+          apiKey: "${LITELLM_API_KEY}"
+          baseURL: "${LITELLM_URL}"
+          iconURL: azureOpenAI
+          models:
+            default: ['gpt-4o','gpt-4.1','gpt-4.1-mini']
+            fetch: false
+          titleModel: "gpt-4o"
+          modelDisplayLabel: "Custom AI"
+
+modelSpecs:
+  list:
+    ###### OPEN AI MODELS
+        - name: "gpt-5.1"
+          label: "gpt-5.1"
+          default: true
+          description: "Most powerful model for complex reasoning and creative tasks."
+          iconURL: "openAI"
+          group: "Azure-OpenAI"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "gpt-5.1"
+            modelLabel: "gpt-5.1"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+        - name: "gpt-oss"
+          label: "gpt-oss"
+          default: true
+          description: "Optimized for open-source code and technical documentation."
+          iconURL: "openAI"
+          group: "Azure-OpenAI"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "gpt-oss"
+            modelLabel: "gpt-oss"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+              
+        ###### OpenAI O MODELS
+        - name: "o1-mini"
+          label: "o1-mini"
+          default: true
+          description: "Fast and efficient model for everyday tasks and quick queries."
+          iconURL: "openAI"
+          group: "OpenAI reasoning models"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "o1-mini"
+            modelLabel: "o1-mini"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+        - name: "o3-mini"
+          label: "o3-mini"
+          default: true
+          description: "A balanced model for reasoning, text, and vision tasks."
+          iconURL: "openAI"
+          group: "OpenAI reasoning models"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "o3-mini"
+            modelLabel: "o3-mini"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+        - name: "o4-mini"
+          label: "o4-mini"
+          default: true
+          description: "Advanced small model with strong multimodal reasoning capabilities."
+          iconURL: "openAI"
+          group: "OpenAI reasoning models"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "o4-mini"
+            modelLabel: "o4-mini"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: | 
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+        ###### Gemini  MODELS
+        - name: "gemini-2.5-flash"
+          label: "gemini-2.5-flash"
+          default: true
+          description: "High-speed model for summarization, chat, and data extraction."
+          iconURL: "google"
+          group: "Gemini Models"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "gemini-2.5-flash"
+            modelLabel: "gemini-2.5-flash"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+        - name: "gemini-2.5-pro"
+          label: "gemini-2.5-pro"
+          default: true
+          description: "Powerful model for advanced reasoning, and creative collaboration."
+          iconURL: "google"
+          group: "Gemini Models"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "gemini-2.5-pro"
+            modelLabel: "gemini-2.5-pro"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+        - name: "gemini-3-pro-preview"
+          label: "gemini-3-pro-preview"
+          default: true
+          description: "Next-generation model for cutting-edge and complex tasks."
+          iconURL: "google"
+          group: "Gemini Models"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "gemini-3-pro-preview"
+            modelLabel: "gemini-3-pro-preview"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+        ###### DeepSeek  MODELS
+        - name: "DeepSeek-V3.1"
+          label: "DeepSeek-V3.1"
+          default: true
+          description: "A strong model for coding, math, and technical reasoning."
+          iconURL: "https://upload.wikimedia.org/wikipedia/commons/9/95/DeepSeek-icon.svg"
+          group: "DeepSeek Models"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "DeepSeek-V3.1"
+            modelLabel: "DeepSeek-V3.1"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+        ###### Anthropic-Claude models
+        - name: "claude-sonnet-4-5"
+          label: "claude-sonnet-4-5"
+          default: true
+          description: "Balanced model for enterprise tasks like data analysis and product recommendations."
+          iconURL: "anthropic"
+          group: "Anthropic-Claude"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "claude-sonnet-4-5"
+            modelLabel: "claude-sonnet-4-5"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+        - name: "claude-haiku-4-5"
+          label: "claude-haiku-4-5"
+          default: true
+          description: "Fastest model for real-time interactions and customer support."
+          iconURL: "anthropic"
+          group: "Anthropic-Claude"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "claude-haiku-4-5"
+            modelLabel: "claude-haiku-4-5"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+        ###### Mistral Models
+        - name: "Mistral Small 3.1"
+          label: "Mistral Small 3.1"
+          default: true
+          description: "Efficient model for low-latency tasks and simple workflows."
+          iconURL: "https://upload.wikimedia.org/wikipedia/commons/e/e6/Mistral_AI_logo_%282025%E2%80%93%29.svg "
+          group: "Mistral Models"
+          preset:
+            endpoint: "Legacy Azure-OpenAI"
+            model: "Mistral Small 3.1"
+            modelLabel: "Mistral Small 3.1"
+            greeting: |
+              LibreChat is an open-source app for AI conversations. This instance is deployed and maintained by the Office of Information Technology at Brown University
+            promptPrefix: |
+              ## DUMMY TEXT
+              ### ROLE, KNOWLEDGE & RESPONSIBILITY
+
+fileConfig:
+  serverFileSizeLimit: 5000
