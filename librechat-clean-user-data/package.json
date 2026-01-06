@@ -1,0 +1,14 @@
+{
+  "name": "librechat-clean-user-data",
+  "version": "1.0.0",
+  "description": "project to execute cleaning scripts in librechat database",
+  "main": "index.js",
+  "scripts": {
+    "delete-user-data-by-date": "node src/purge-user-data-by-date.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mongoose": "^9.1.2"
+  }
+}
