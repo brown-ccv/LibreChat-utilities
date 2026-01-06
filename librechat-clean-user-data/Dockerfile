@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20.19-alpine
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ RUN npm ci --only=production
 
 # Copy source code
 COPY src ./src
-COPY .env* ./
+
 
 # Run the script
 CMD ["npm", "run", "delete-user-data-by-date"]
