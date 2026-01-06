@@ -1,3 +1,26 @@
+# Dependencies
+node_modules/
+/jspm_packages/
+.npm/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+lerna-debug.log*
+
+# Optional npm cache files
+.npm
+.eslintcache
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Typescript v1
+*.js.map
+*.d.ts
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
