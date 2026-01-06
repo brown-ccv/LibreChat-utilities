@@ -1,11 +1,14 @@
 const mongoose = require('mongoose');
 
 const uri = process.env.MONGO_URI;
-const client = new MongoClient(uri);
+if (!uri) {
+  console.error('MONGO_URI environment variable is not set');
+  process.exit(1);
+}
 
 async function purgeUserDataByDate(cutoffDate) {
   try {
-    await mongoose.connect();
+    await mongoose.connect(uri);
     console.log('Connected to MongoDB');
     
     const db = mongoose.connection.db;
@@ -33,7 +36,7 @@ async function purgeUserDataByDate(cutoffDate) {
   } catch (error) {
     console.error('Error:', error);
   } finally {
-    await client.close();
+    await mongoose.connection.close();
     console.log('Connection closed');
   }
 }
