@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { MongoClient } = require('mongodb');
 
-const uri = `${process.env.MONGO_URI}`;
+const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri);
 
 async function purgeUserDataByDate(cutoffDate) {
@@ -9,7 +9,7 @@ async function purgeUserDataByDate(cutoffDate) {
     await client.connect();
     console.log('Connected to MongoDB');
     
-    const db = client.db('mg_librechat');
+    const db = client.db(process.env.MONGO_DB_NAME);
     
     const session = client.startSession();
     
