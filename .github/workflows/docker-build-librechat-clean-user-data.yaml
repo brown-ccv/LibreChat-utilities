@@ -1,4 +1,4 @@
-name: Clean logs - Build and Push Container
+name: Clean user data by date
 on:  
   workflow_dispatch:
 
