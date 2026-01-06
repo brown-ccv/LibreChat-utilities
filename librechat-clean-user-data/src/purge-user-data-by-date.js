@@ -1,16 +1,16 @@
-const { MongoClient } = require('mongodb');
+const mongoose = require('mongoose');
 
 const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri);
 
 async function purgeUserDataByDate(cutoffDate) {
   try {
-    await client.connect();
+    await mongoose.connect();
     console.log('Connected to MongoDB');
     
-    const db = client.db(process.env.MONGO_DB_NAME);
+    const db = mongoose.connection.db;
     
-    const session = client.startSession();
+    const session = await mongoose.startSession();
     
     try {
       await session.withTransaction(async () => {
