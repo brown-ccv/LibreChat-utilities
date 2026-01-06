@@ -18,7 +18,9 @@ async function purgeUserDataByDate(cutoffDate) {
 
         const users = await db.collection('users').find({}).toArray();
         console.log(`Found ${users.length} users:`);
-        console.log(JSON.stringify(users, null, 2));
+        users.forEach(user => {
+          console.log(`user.email: ${user.email}  user.name: ${user.name}`);
+        });
         
         // Your delete operations here
         // const result = await db.collection('users').deleteMany({ createdAt: { $lt: cutoffDate } }, { session });
