@@ -6,19 +6,22 @@ if (!uri) {
   process.exit(1);
 }
 
-const cutoffDate = process.env.CUTOFF_DATE
-if (!cutoffDate) {
-  console.error('CUTOFF_DATE environment variable is not set');
+const cutoffDays = process.env.CUTOFF_DAYS
+if (!cutoffDays) {
+  console.error('CUTOFF_DAYS environment variable is not set');
   process.exit(1);
 }
 
-const cutoffDateObj = new Date(cutoffDate);
-if (isNaN(cutoffDateObj.getTime())) {
-  console.error('CUTOFF_DATE is not a valid date');
+const daysNumber = parseInt(cutoffDays, 10);
+if (isNaN(daysNumber) || daysNumber <= 0) {
+  console.error('CUTOFF_DATE must be a positive number of days');
   process.exit(1);
 }
 
-console.log(`Using cutoff date: ${cutoffDateObj.toISOString()}`);
+const cutoffDateObj = new Date();
+cutoffDateObj.setDate(cutoffDateObj.getDate() - daysNumber);
+console.log(`Using cutoff date: ${cutoffDateObj.toISOString()} (${daysNumber} days ago)`);
+
 
 const userSchema = new mongoose.Schema({}, { strict: false, collection: 'users' });
 const tokenSchema = new mongoose.Schema({}, { strict: false, collection: 'tokens' });
@@ -56,29 +59,32 @@ async function purgeUserDataByDate(cutoffDate) {
         console.log(`Found ${users.length} users:`);
         console.log('---');
         for (const user of users) {
-          const mostRecentTransaction = await db.collection('transactions')
-            .find({ user: user._id })
-            .sort({ createdAt: -1 })
-            .limit(1)
-            .toArray();
-          const lastTransactionDate = mostRecentTransaction.length > 0 
-            ? mostRecentTransaction[0].createdAt 
-            : null;
-          console.log(`User: ${user.email || user.name}`);
-          console.log(`  Last transaction: ${lastTransactionDate ? lastTransactionDate.toISOString() : 'No transactions'}`);
-          if (lastTransactionDate && lastTransactionDate < cutoffDate) {
-            console.log(`  ⚠️  Last activity before cutoff date - candidate for deletion`);
-          }
-          console.log('---')
-        };
-        
-        // Your delete operations here
-        // const result = await db.collection('users').deleteMany({ createdAt: { $lt: cutoffDate } }, { session });
-        // console.log(`Deleted ${result.deletedCount} users`);
-        // Add more collections as needed
-      });
+          try{
+
+              const mostRecentTransaction = await db.collection('transactions')
+              .find({ user: user._id })
+              .sort({ createdAt: -1 })
+              .limit(1)
+              .toArray();
+              const lastTransactionDate = mostRecentTransaction.length > 0 
+                ? mostRecentTransaction[0].createdAt 
+                : null;
+              console.log(`User: ${user.email || user.name}`);
+              console.log(`  Last transaction: ${lastTransactionDate ? lastTransactionDate.toISOString() : 'No transactions'}`);
+              if (lastTransactionDate && lastTransactionDate < cutoffDate) {
+                console.log(`  ⚠️  Last activity before cutoff date - candidate for deletion`);
+              }
+              console.log('---');
+
+            }catch (error) {
+              console.error(`Error processing user ${user.name} ${user.email}`, error);
+            }
+        }
+
+      }); 
       console.log('Transaction completed successfully');
-    } finally {
+    } 
+    finally {
       await session.endSession();
     }
   } catch (error) {
