@@ -14,7 +14,7 @@ if (!cutoffDays) {
 
 const daysNumber = parseInt(cutoffDays, 10);
 if (isNaN(daysNumber) || daysNumber <= 0) {
-  console.error('CUTOFF_DATE must be a positive number of days');
+  console.error('CUTOFF_DAYS must be a positive number of days');
   process.exit(1);
 }
 
@@ -59,7 +59,7 @@ async function purgeUserDataByDate(cutoffDate) {
         console.log(`Found ${users.length} users:`);
         console.log('---');
         for (const user of users) {
-          try{
+          try {
 
               const mostRecentTransaction = await db.collection('transactions')
               .find({ user: user._id })
@@ -76,7 +76,7 @@ async function purgeUserDataByDate(cutoffDate) {
               }
               console.log('---');
 
-            }catch (error) {
+            } catch (error) {
               console.error(`Error processing user ${user.name} ${user.email}`, error);
             }
         }
