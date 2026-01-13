@@ -6,7 +6,7 @@ if (!uri) {
   process.exit(1);
 }
 
-const cutoffDays = process.env.CUTOFF_DAYS
+const cutoffDays = process.env.CUTOFF_DAYS;
 if (!cutoffDays) {
   console.error('CUTOFF_DAYS environment variable is not set');
   process.exit(1);
