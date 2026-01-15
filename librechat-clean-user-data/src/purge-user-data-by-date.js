@@ -43,7 +43,7 @@ const Preset = mongoose.model('Preset', presetSchema);
 const Prompt = mongoose.model('Prompt', promptSchema);
 const Transaction = mongoose.model('Transaction', transactionSchema);
 
-async function purgeUserDataByDate(cutoffDate) {
+async function findInactiveUsers(cutoffDate) {
   try {
     await mongoose.connect(uri);
     console.log('Connected to MongoDB');
@@ -109,9 +109,9 @@ async function purgeUserDataByDate(cutoffDate) {
           {
             $match: {
               $or: [
-                { lastActivityDate: { $exists: false } },
-                { lastActivityDate: null }, 
-                { lastActivityDate: { $lt: cutoffDate } }
+                { lastActivityDate: { $exists: false } },  // No activity date
+                { lastActivityDate: null },                 // Null activity date
+                { lastActivityDate: { $lt: cutoffDate } }   // Activity before cutoff
               ]
             }
           }
@@ -119,6 +119,12 @@ async function purgeUserDataByDate(cutoffDate) {
 
         console.log(`Found ${usersToRemove.length} users:`);
         console.log('---');
+
+        for (const user of usersToRemove) {
+            console.log(`User: ${user.email || user.name}`);
+            console.log(`  ⚠️  Last activity before cutoff date - candidate for deletion`);
+            console.log('---');          
+        }
 
       }); 
       console.log('Transaction completed successfully');
@@ -136,4 +142,4 @@ async function purgeUserDataByDate(cutoffDate) {
 
 // execute the function with a sample cutoff date
 
-purgeUserDataByDate(cutoffDateObj);
+findInactiveUsers(cutoffDateObj);
