@@ -22,6 +22,9 @@ const cutoffDateObj = new Date();
 cutoffDateObj.setDate(cutoffDateObj.getDate() - daysNumber);
 console.log(`Using cutoff date: ${cutoffDateObj.toISOString()} (${daysNumber} days ago)`);
 
+const warningDateObj = new Date();
+warningDateObj.setDate(warningDateObj.getDate() - (daysNumber - 10));
+console.log(`Warning date: ${warningDateObj.toISOString()} (${daysNumber - 10} days ago)`);
 
 const userSchema = new mongoose.Schema({}, { strict: false, collection: 'users' });
 const tokenSchema = new mongoose.Schema({}, { strict: false, collection: 'tokens' });
@@ -43,97 +46,149 @@ const Preset = mongoose.model('Preset', presetSchema);
 const Prompt = mongoose.model('Prompt', promptSchema);
 const Transaction = mongoose.model('Transaction', transactionSchema);
 
-async function findInactiveUsers(cutoffDate) {
+
+function buildActivityLookupPipeline() {
+  return [
+    {
+      $lookup: {
+        from: 'transactions',
+        localField: '_id',
+        foreignField: 'user',
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 },
+          { $project: { createdAt: 1 } }
+        ],
+        as: 'lastTransaction'
+      }
+    },
+    {
+      $lookup: {
+        from: 'files',
+        localField: '_id',
+        foreignField: 'user',
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 },
+          { $project: { createdAt: 1 } }
+        ],
+        as: 'lastFile'
+      }
+    },
+    {
+      $lookup: {
+        from: 'messages',
+        localField: '_id',
+        foreignField: 'user',
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 },
+          { $project: { createdAt: 1 } }
+        ],
+        as: 'lastMessage'
+      }
+    },
+    {
+      $addFields: {
+        lastActivityDate: {
+          $max: [
+            { $arrayElemAt: ['$lastTransaction.createdAt', 0] },
+            { $arrayElemAt: ['$lastFile.createdAt', 0] },
+            { $arrayElemAt: ['$lastMessage.createdAt', 0] }
+          ]
+        }
+      }
+    }
+  ];
+}
+
+
+function buildWarningMatchStage(warningDate) {
+  const startOfDay = new Date(warningDate);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date(warningDate);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  return {
+    $match: {
+      lastActivityDate: {
+        $gte: startOfDay,
+        $lte: endOfDay
+      }
+    }
+  };
+}
+
+function buildDeletionMatchStage(cutoffDate) {
+  return {
+    $match: {
+      $or: [
+        { lastActivityDate: { $exists: false } },
+        { lastActivityDate: null },
+        { lastActivityDate: { $lt: cutoffDate } }
+      ]
+    }
+  };
+}
+
+function buildUsersForWarningQuery(warningDate) {
+  return [
+    ...buildActivityLookupPipeline(),
+    buildWarningMatchStage(warningDate)
+  ];
+}
+
+function buildUsersForDeletionQuery(cutoffDate) {
+  return [
+    ...buildActivityLookupPipeline(),
+    buildDeletionMatchStage(cutoffDate)
+  ];
+}
+
+async function findInactiveUsers(warningDate, cutoffDate) {
   try {
     await mongoose.connect(uri);
     console.log('Connected to MongoDB');
-    
+
     const db = mongoose.connection.db;
-    
-    const session = await mongoose.startSession();
-    
-    try {
-      await session.withTransaction(async () => {
 
-        const usersToRemove = await db.collection('users').aggregate([
-          {
-            $lookup: {
-              from: 'transactions',
-              localField: '_id',
-              foreignField: 'user',
-              pipeline: [
-                { $sort: { createdAt: -1 } },
-                { $limit: 1 },
-                { $project: { createdAt: 1 } }
-              ],
-              as: 'lastTransaction'
-            }
-          },
-          {
-            $lookup: {
-              from: 'files',
-              localField: '_id',
-              foreignField: 'user',
-              pipeline: [
-                { $sort: { createdAt: -1 } },
-                { $limit: 1 },
-                { $project: { createdAt: 1 } }
-              ],
-              as: 'lastFile'
-            }
-          },
-          {
-            $lookup: {
-              from: 'messages',
-              localField: '_id',
-              foreignField: 'user',
-              pipeline: [
-                { $sort: { createdAt: -1 } },
-                { $limit: 1 },
-                { $project: { createdAt: 1 } }
-              ],
-              as: 'lastMessage'
-            }
-          },
-          {
-            $addFields: {
-              lastActivityDate: {
-                $max: [
-                  { $arrayElemAt: ['$lastTransaction.createdAt', 0] },
-                  { $arrayElemAt: ['$lastFile.createdAt', 0] },
-                  { $arrayElemAt: ['$lastMessage.createdAt', 0] }
-                ]
-              }
-            }
-          },
-          {
-            $match: {
-              $or: [
-                { lastActivityDate: { $exists: false } },  // No activity date
-                { lastActivityDate: null },                 // Null activity date
-                { lastActivityDate: { $lt: cutoffDate } }   // Activity before cutoff
-              ]
-            }
-          }
-        ]).toArray();
+    // Find users to warn (10 days before deletion)
+    const usersToWarn = await db.collection('users')
+      .aggregate(buildUsersForWarningQuery(warningDate))
+      .toArray();
 
-        console.log(`Found ${usersToRemove.length} users:`);
-        console.log('---');
+    const usersToDelete = await db.collection('users')
+      .aggregate(buildUsersForDeletionQuery(cutoffDate))
+      .toArray();
 
-        for (const user of usersToRemove) {
-            console.log(`User: ${user.email || user.name}`);
-            console.log(`  ⚠️  Last activity before cutoff date - candidate for deletion`);
-            console.log('---');          
-        }
-
-      }); 
-      console.log('Transaction completed successfully');
-    } 
-    finally {
-      await session.endSession();
+    console.log('\n=== USERS TO WARN ===');
+    console.log(`Found ${usersToWarn.length} users (last activity on ${warningDate.toISOString().split('T')[0]}):`);
+    console.log('---');
+    for (const user of usersToWarn) {
+      console.log(`User: ${user.email || user.name || user._id}`);
+      console.log(`  Last activity: ${user.lastActivityDate ? new Date(user.lastActivityDate).toISOString() : 'No activity'}`);
+      console.log(`  ⚠️  Send warning email`);
+      console.log('---');
     }
+
+    console.log('\n=== USERS TO DELETE ===');
+    console.log(`Found ${usersToDelete.length} users (inactive 180+ days):`);
+    console.log('---');
+    for (const user of usersToDelete) {
+      console.log(`User: ${user.email || user.name || user._id}`);
+      console.log(`  Last activity: ${user.lastActivityDate ? new Date(user.lastActivityDate).toISOString() : 'No activity'}`);
+      console.log(`  🗑️  Candidate for deletion`);
+      console.log('---');
+    }
+
+
+    console.log('Operation completed successfully');
+    return { usersToWarn, usersToDelete };
+
   } catch (error) {
     console.error('Error:', error);
+    throw error;
   } finally {
     await mongoose.connection.close();
     console.log('Connection closed');
@@ -142,4 +197,4 @@ async function findInactiveUsers(cutoffDate) {
 
 // execute the function with a sample cutoff date
 
-findInactiveUsers(cutoffDateObj);
+findInactiveUsers(warningDateObj, cutoffDateObj);
