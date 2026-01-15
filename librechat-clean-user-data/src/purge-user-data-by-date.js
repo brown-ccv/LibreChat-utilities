@@ -55,31 +55,70 @@ async function purgeUserDataByDate(cutoffDate) {
     try {
       await session.withTransaction(async () => {
 
-        const users = await db.collection('users').find({}).toArray();
-        console.log(`Found ${users.length} users:`);
-        console.log('---');
-        for (const user of users) {
-          try {
-
-              const mostRecentTransaction = await db.collection('transactions')
-              .find({ user: user._id })
-              .sort({ createdAt: -1 })
-              .limit(1)
-              .toArray();
-              const lastTransactionDate = mostRecentTransaction.length > 0 
-                ? mostRecentTransaction[0].createdAt 
-                : null;
-              console.log(`User: ${user.email || user.name}`);
-              console.log(`  Last transaction: ${lastTransactionDate ? lastTransactionDate.toISOString() : 'No transactions'}`);
-              if (lastTransactionDate && lastTransactionDate < cutoffDate) {
-                console.log(`  ⚠️  Last activity before cutoff date - candidate for deletion`);
-              }
-              console.log('---');
-
-            } catch (error) {
-              console.error(`Error processing user ${user.name} ${user.email}`, error);
+        const usersToRemove = await db.collection('users').aggregate([
+          {
+            $lookup: {
+              from: 'transactions',
+              localField: '_id',
+              foreignField: 'user',
+              pipeline: [
+                { $sort: { createdAt: -1 } },
+                { $limit: 1 },
+                { $project: { createdAt: 1 } }
+              ],
+              as: 'lastTransaction'
             }
-        }
+          },
+          {
+            $lookup: {
+              from: 'files',
+              localField: '_id',
+              foreignField: 'user',
+              pipeline: [
+                { $sort: { createdAt: -1 } },
+                { $limit: 1 },
+                { $project: { createdAt: 1 } }
+              ],
+              as: 'lastFile'
+            }
+          },
+          {
+            $lookup: {
+              from: 'messages',
+              localField: '_id',
+              foreignField: 'user',
+              pipeline: [
+                { $sort: { createdAt: -1 } },
+                { $limit: 1 },
+                { $project: { createdAt: 1 } }
+              ],
+              as: 'lastMessage'
+            }
+          },
+          {
+            $addFields: {
+              lastActivityDate: {
+                $max: [
+                  { $arrayElemAt: ['$lastTransaction.createdAt', 0] },
+                  { $arrayElemAt: ['$lastFile.createdAt', 0] },
+                  { $arrayElemAt: ['$lastMessage.createdAt', 0] }
+                ]
+              }
+            }
+          },
+          {
+            $match: {
+              $or: [
+                { lastActivityDate: { $exists: false } },
+                { lastActivityDate: null }, 
+                { lastActivityDate: { $lt: cutoffDate } }
+              ]
+            }
+          }
+        ]).toArray();
+
+        console.log(`Found ${usersToRemove.length} users:`);
+        console.log('---');
 
       }); 
       console.log('Transaction completed successfully');
