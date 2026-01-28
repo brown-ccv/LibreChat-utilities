@@ -13,4 +13,5 @@ COPY src ./src
 
 
 # Run the script
-CMD ["npm", "run", "delete-user-data-by-date"]
+#CMD ["npm", "run", "delete-user-data-by-date"]
+CMD ["npm", "run", "delete-files-in-storage-by-date"]

@@ -4,11 +4,13 @@
   "description": "project to execute cleaning scripts in librechat database",
   "main": "index.js",
   "scripts": {
-    "delete-user-data-by-date": "node src/purge-user-data-by-date.js"
+    "delete-user-data-by-date": "node src/purge-user-data-by-date.js",
+    "delete-files-in-storage-by-date": "node src/purge-old-files.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.13.2",
     "mongoose": "^9.1.2"
   }
 }

@@ -52,6 +52,7 @@ const warningDateObj = new Date();
 warningDateObj.setDate(warningDateObj.getDate() - (daysNumber - 10));
 console.log(`Warning date: ${warningDateObj.toISOString()} (${daysNumber - 10} days ago)`);
 
+
 async function inactiveUsersOperations(warningDate, cutoffDate) {
   try {
     // Connect to databases
