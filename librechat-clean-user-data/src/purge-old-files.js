@@ -63,8 +63,8 @@ async function deleteFileFromStorage(filepath, storagePath) {
   try {
     const fullPath = path.join(storagePath, filepath);
     console.log(`fullPath: ${fullPath}`)
-    //await fs.access(fullPath);
-    //console.log(`File found in storage: ${fullPath}`);
+    await fs.access(fullPath);
+    console.log(`File found in storage: ${fullPath}`);
     //await fs.unlink(fullPath);
     //console.log(`Deleted file from storage: ${filepath}`);
     return true;
