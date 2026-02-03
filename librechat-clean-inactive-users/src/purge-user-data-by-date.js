@@ -86,7 +86,7 @@ async function sendWarningEmail(user, daysUntilDeletion = 10) {
     subject: 'Account Inactivity Warning - Action Required',
     html: `
       <h2>Account Inactivity Notice</h2>
-      <p>Hello ${user.name || 'User'},</p>
+      <p>Hello User,</p>
       <p>We noticed that your account has been inactive for an extended period.</p>
       <p><strong>Your account will be deleted in ${daysUntilDeletion} days if no activity is detected.</strong></p>
       <p>To keep your account active, simply log in at: <a href="${process.env.APP_URL || 'https://yourapp.com'}">${process.env.APP_URL || 'https://yourapp.com'}</a></p>
