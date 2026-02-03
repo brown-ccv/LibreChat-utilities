@@ -11,6 +11,15 @@ const {
 const path = require('path');
 const fs = require('fs').promises;
 
+// Dry-run mode check
+const DRY_RUN = process.env.DRY_RUN !== 'false'; // Defaults to true unless explicitly set to 'false'
+console.log(`\n Running in ${DRY_RUN ? 'DRY-RUN' : 'LIVE'} mode`);
+if (DRY_RUN) {
+  console.log(' No data will be deleted from the database\n');
+} else {
+  console.log(' WARNING: This will delete data from the database!\n');
+}
+
 // MongoDB URI
 const uri = process.env.MONGO_URI;
 if (!uri) {
@@ -65,8 +74,10 @@ async function deleteFileFromStorage(filepath, storagePath) {
     console.log(`fullPath: ${fullPath}`)
     await fs.access(fullPath);
     console.log(`File found in storage: ${fullPath}`);
-    //await fs.unlink(fullPath);
-    //console.log(`Deleted file from storage: ${filepath}`);
+    if (DRY_RUN === false){
+      await fs.unlink(fullPath);
+      console.log(`Deleted file from storage: ${filepath}`);
+    }
     return true;
   } catch (error) {
     if (error.code === 'ENOENT') {
@@ -86,17 +97,14 @@ async function removeFileReferencesFromMessages(fileIds) {
     ).lean();
 
     console.log(`Found ${results.length} messages with file references`);
+    if (DRY_RUN === false) {
+      const result = await Message.updateMany(
+        { 'files.file_id': { $in: fileIds } },
+        { $pull: { files: { file_id: { $in: fileIds } } } } 
+      );
+      console.log(`Removed file references from ${result.modifiedCount} messages`);
+    }
     
-    // for(const message of results) {
-    //   console.log(`Message ${message._id} has ${message.files?.length || 0} file(s)`);
-    // }
-    
-    // When ready to delete, uncomment:
-    // const result = await Message.updateMany(
-    //   { 'files.file_id': { $in: fileIds } },
-    //   { $pull: { files: { file_id: { $in: fileIds } } } }  // ✅ Correct nested pull
-    // );
-    // console.log(`Removed file references from ${result.modifiedCount} messages`);
     return true;
   } catch (error) {
     console.error(`Error removing file references from messages:`, error.message);
@@ -108,19 +116,22 @@ async function removeReferencesFromPostgres(fileIds, pgPool) {
   try {
      const pgClient = await pgPool.connect();
     try {
-      // Delete rows associated with the file IDs
-      // const result = await pgClient.query(
-      //   'DELETE FROM langchain_pg_embedding WHERE custom_id = ANY($1::text[])',
-      //   [fileIds]
-      // );
-      //console.log(`Deleted ${result.rowCount} embedding records from PostgreSQL`);
-      
+
       const result = await pgClient.query(
         'SELECT collection_id, custom_id, cmetadata FROM langchain_pg_embedding WHERE custom_id = ANY($1::varchar[])',
         [fileIds]
       );
       
       console.log(`found ${result.rowCount} embedding records from PostgreSQL`);
+
+      if (DRY_RUN === false) {
+          // Delete rows associated with the file IDs
+          const result = await pgClient.query(
+            'DELETE FROM langchain_pg_embedding WHERE custom_id = ANY($1::text[])',
+            [fileIds]
+          );
+          console.log(`Deleted ${result.rowCount} embedding records from PostgreSQL`);
+      }
 
       return result.rowCount;
     } finally {
@@ -225,26 +236,29 @@ async function cleanupOldFiles(warningDate, cutoffDate) {
     console.log(`\n=== Cleaning IMAGES ${localImagePaths.length} From storage ===`);
     for (const filePath of localImagePaths) {
       try {
-        await deleteFileFromStorage(filePath, IMAGE_STORAGE_PATH);
         // delete from storage
-        //const storageDeleted = await deleteFileFromStorage(file.filepath);
+        await deleteFileFromStorage(filePath, IMAGE_STORAGE_PATH);      
         
       } catch (error) {
         console.error(`  ✗ Error deleting file:`, error.message);
       }
     }
 
-    // Finally delete from database    
-    // console.log(`\n=== Deleting ${oldFiles.length} files from database ===`);
-    // const dbResult = await File.deleteMany({
-    //   _id: { $in: oldFiles.map(f => f._id) } 
-    // });
+    if(DRY_RUN === false)
+    {
+      // Finally delete from database    
+      console.log(`\n=== Deleting ${oldFiles.length} files from database ===`);
+      const dbResult = await File.deleteMany({
+        _id: { $in: oldFiles.map(f => f._id) } 
+      });
 
-    // console.log(`✓ Deleted ${dbResult.deletedCount} files from database`);
+      console.log(` Deleted ${dbResult.deletedCount} files from database`);
 
-    // if (dbResult.deletedCount !== oldFiles.length) {
-    //   console.log(`⚠ Warning: Expected to delete ${oldFiles.length} files, but only deleted ${dbResult.deletedCount}`);
-    // }
+      if (dbResult.deletedCount !== oldFiles.length) {
+        console.log(`Warning: Expected to delete ${oldFiles.length} files, but only deleted ${dbResult.deletedCount}`);
+      }
+    }
+
 
   
     console.log('\nOperation completed successfully');

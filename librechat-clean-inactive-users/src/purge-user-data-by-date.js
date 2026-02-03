@@ -7,8 +7,24 @@ const {
   deleteInactiveUsers
 } = require('./utils');
 
+const nodemailer = require('nodemailer');
+
+const emailConfig = {
+  host: process.env.SMTP_HOST || 'regmail.brown.edu',
+  port: process.env.SMTP_PORT || 25,
+  // secure: false,
+  // auth: {
+  //   user: process.env.SMTP_USER,
+  //   pass: process.env.SMTP_PASSWORD
+  // }
+};
+
+const transporter = nodemailer.createTransport(emailConfig);
+
+
 // Dry-run mode check
-const DRY_RUN = process.env.DRY_RUN !== 'false'; // Defaults to true unless explicitly set to 'false'
+// Defaults to true
+const DRY_RUN = process.env.DRY_RUN !== 'false'; 
 console.log(`\n🔍 Running in ${DRY_RUN ? 'DRY-RUN' : 'LIVE'} mode`);
 if (DRY_RUN) {
   console.log('⚠️  No data will be deleted from the database\n');
@@ -62,6 +78,37 @@ warningDateObj.setDate(warningDateObj.getDate() - (daysNumber - 10));
 console.log(`Warning date: ${warningDateObj.toISOString()} (${daysNumber - 10} days ago)`);
 
 
+async function sendWarningEmail(user, daysUntilDeletion = 10) {
+  const emailContent = {
+    from: process.env.EMAIL_FROM || 'ccv-ai@brown.edu',
+    //to: user.email,
+    to: 'camilo_diaz@brown.edu',
+    subject: 'Account Inactivity Warning - Action Required',
+    html: `
+      <h2>Account Inactivity Notice</h2>
+      <p>Hello ${user.name || 'User'},</p>
+      <p>We noticed that your account has been inactive for an extended period.</p>
+      <p><strong>Your account will be deleted in ${daysUntilDeletion} days if no activity is detected.</strong></p>
+      <p>To keep your account active, simply log in at: <a href="${process.env.APP_URL || 'https://yourapp.com'}">${process.env.APP_URL || 'https://yourapp.com'}</a></p>
+      <p>If you have any questions, please contact support.</p>
+      <p>Best regards,<br>The Team</p>
+    `
+  };
+
+  try {
+    if (DRY_RUN) {
+      console.log(`  [DRY-RUN] Would send email to: ${user.email}`);
+      return true;
+    }
+    await transporter.sendMail(emailContent);
+    console.log(`  ✓ Email sent to: ${user.email}`);
+    return true;
+  } catch (error) {
+    console.error(`  ✗ Failed to send email to ${user.email}:`, error.message);
+    return false;
+  }
+}
+
 async function inactiveUsersOperations(warningDate, cutoffDate) {
   try {
     // Connect to databases
@@ -83,7 +130,12 @@ async function inactiveUsersOperations(warningDate, cutoffDate) {
     for (const user of usersToWarn) {
       console.log(`User: ${user.email || user.name || user._id}`);
       console.log(` Last activity: ${user.lastActivityDate ? new Date(user.lastActivityDate).toISOString() : 'No activity'}`);
-      console.log(` Send warning email`);
+      // if (user.email) {
+      //   const sent = await sendWarningEmail(user);
+      //   if (sent) emailsSent++;
+      // } else {
+      //   console.log(`  ⚠️  No email address found for user`);
+      // }
       console.log('---');
     }
 
@@ -108,6 +160,8 @@ async function inactiveUsersOperations(warningDate, cutoffDate) {
         console.log(`Successfully deleted ${usersToDelete.length} users`);
       }
     }
+
+    sendWarningEmail();
 
     console.log('\nOperation completed successfully');
 

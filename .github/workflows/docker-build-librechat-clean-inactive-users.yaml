@@ -1,4 +1,4 @@
-name: Clean user data by date
+name: Clean inactive users
 on:  
   workflow_dispatch:
 
