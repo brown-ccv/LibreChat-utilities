@@ -97,10 +97,10 @@ async function sendWarningEmail(user, daysUntilDeletion = 10) {
   };
 
   try {
-    if (DRY_RUN) {
-      console.log(`  [DRY-RUN] Would send email to: ${fromEmail}`);
-      return true;
-    }
+    // if (DRY_RUN) {
+    //   console.log(`  [DRY-RUN] Would send email to: ${fromEmail}`);
+    //   return true;
+    // }
     await transporter.sendMail(emailContent);
     console.log(`  ✓ Email sent to: ${fromEmail}`);
     return true;
