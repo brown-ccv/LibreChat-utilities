@@ -10,24 +10,44 @@ const {
 } = require('./utils');
 const path = require('path');
 const fs = require('fs').promises;
+const winston = require('winston');
 
-// Dry-run mode check
-const DRY_RUN = process.env.DRY_RUN !== 'false'; // Defaults to true unless explicitly set to 'false'
-console.log(`\n Running in ${DRY_RUN ? 'DRY-RUN' : 'LIVE'} mode`);
+const { combine, timestamp, label, printf } = winston.format;
+
+// Configure log manager
+const logger = winston.createLogger({
+  format: combine(
+    label({ label: 'purge-old-files' }),
+    timestamp(),
+    printf(({ level, message, label, timestamp }) => {
+      return `${timestamp} [${label}] ${level}: ${message}`;
+    })
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: `purge-old-files-${new Date().toISOString().split('T')[0] }.log` })
+  ]
+});
+
+// check  dry-run mode 
+// defaults to true unless expliciy set to false
+const DRY_RUN = process.env.DRY_RUN !== 'false'; 
+logger.info(`\n Running in ${DRY_RUN ? 'DRY-RUN' : 'LIVE'} mode`);
 if (DRY_RUN) {
-  console.log(' No data will be deleted from the database\n');
+  logger.info(' No data will be deleted from the database or from the file storage\n');
 } else {
-  console.log(' WARNING: This will delete data from the database!\n');
+  logger.info(' WARNING: This will delete data from the database!\n');
 }
 
-// MongoDB URI
+// connection to mongodb 
 const uri = process.env.MONGO_URI;
 if (!uri) {
-  console.error('MONGO_URI environment variable is not set');
+  logger.error('MONGO_URI environment variable is not set');
   process.exit(1);
 }
 
 // PostgreSQL configuration
+// This variables are set in the .env file
 const pgConfig = {
   host: process.env.PG_HOST,
   port: process.env.PG_PORT || 5432,
@@ -37,7 +57,7 @@ const pgConfig = {
 };
 
 if (!process.env.PG_HOST || !pgConfig.database || !pgConfig.user || !pgConfig.password) {
-  console.error('PostgreSQL environment variables (PG_HOST, PG_DATABASE, PG_USER, PG_PASSWORD) must be set');
+  logger.error('PostgreSQL environment variables (PG_HOST, PG_DATABASE, PG_USER, PG_PASSWORD) must be set');
   process.exit(1);
 }
 
@@ -46,24 +66,24 @@ const pgPool = new Pool(pgConfig);
 // Cutoff days configuration
 const cutoffDays = process.env.CUTOFF_DAYS;
 if (!cutoffDays) {
-  console.error('CUTOFF_DAYS environment variable is not set');
+  logger.error('CUTOFF_DAYS environment variable is not set');
   process.exit(1);
 }
 
 const daysNumber = parseInt(cutoffDays, 10);
 if (isNaN(daysNumber) || daysNumber <= 0) {
-  console.error('CUTOFF_DAYS must be a positive number of days');
+  logger.error('CUTOFF_DAYS must be a positive number of days');
   process.exit(1);
 }
 
 // Calculate dates
 const cutoffDateObj = new Date();
 cutoffDateObj.setDate(cutoffDateObj.getDate() - daysNumber);
-console.log(`Using cutoff date: ${cutoffDateObj.toISOString()} (${daysNumber} days ago)`);
+logger.info(`Using cutoff date: ${cutoffDateObj.toISOString()} (${daysNumber} days ago)`);
 
 const warningDateObj = new Date();
 warningDateObj.setDate(warningDateObj.getDate() - (daysNumber - 10));
-console.log(`Warning date: ${warningDateObj.toISOString()} (${daysNumber - 10} days ago)`);
+logger.info(`Warning date: ${warningDateObj.toISOString()} (${daysNumber - 10} days ago)`);
 
 const PDF_STORAGE_PATH = process.env.FILE_STORAGE_PATH || '/app/';
 const IMAGE_STORAGE_PATH = process.env.IMAGE_STORAGE_PATH || '/app/client/public/';
@@ -71,20 +91,20 @@ const IMAGE_STORAGE_PATH = process.env.IMAGE_STORAGE_PATH || '/app/client/public
 async function deleteFileFromStorage(filepath, storagePath) {
   try {
     const fullPath = path.join(storagePath, filepath);
-    console.log(`fullPath: ${fullPath}`)
+    logger.info(`fullPath: ${fullPath}`)
     await fs.access(fullPath);
-    console.log(`File found in storage: ${fullPath}`);
+    logger.info(`File found in storage: ${fullPath}`);
     if (DRY_RUN === false){
       await fs.unlink(fullPath);
-      console.log(`Deleted file from storage: ${filepath}`);
+      logger.info(`Deleted file from storage: ${filepath}`);
     }
     return true;
   } catch (error) {
     if (error.code === 'ENOENT') {
-      console.log(`File not found in storage (already deleted?): ${fullPath}`);
+      logger.warn(`File not found in storage (already deleted?): ${fullPath}`);
       return true;
     }
-    console.error(`Error deleting file from storage: ${fullPath}`, error.message);
+    logger.error(`Error deleting file from storage: ${fullPath}`, error.message);
     return false;
   }
 }
@@ -96,18 +116,18 @@ async function removeFileReferencesFromMessages(fileIds) {
       { 'files.file_id': { $in: fileIds }}
     ).lean();
 
-    console.log(`Found ${results.length} messages with file references`);
+    logger.info(`Found ${results.length} messages with file references`);
     if (DRY_RUN === false) {
       const result = await Message.updateMany(
         { 'files.file_id': { $in: fileIds } },
         { $pull: { files: { file_id: { $in: fileIds } } } } 
       );
-      console.log(`Removed file references from ${result.modifiedCount} messages`);
+      logger.info(`Removed file references from ${result.modifiedCount} messages`);
     }
     
     return true;
   } catch (error) {
-    console.error(`Error removing file references from messages:`, error.message);
+    logger.error(`Error removing file references from messages:`, error.message);
     return false;
   }
 }
@@ -122,7 +142,7 @@ async function removeReferencesFromPostgres(fileIds, pgPool) {
         [fileIds]
       );
       
-      console.log(`found ${result.rowCount} embedding records from PostgreSQL`);
+      logger.info(`found ${result.rowCount} embedding records from PostgreSQL`);
 
       if (DRY_RUN === false) {
           // Delete rows associated with the file IDs
@@ -130,7 +150,7 @@ async function removeReferencesFromPostgres(fileIds, pgPool) {
             'DELETE FROM langchain_pg_embedding WHERE custom_id = ANY($1::text[])',
             [fileIds]
           );
-          console.log(`Deleted ${result.rowCount} embedding records from PostgreSQL`);
+          logger.info(`Deleted ${result.rowCount} embedding records from PostgreSQL`);
       }
 
       return result.rowCount;
@@ -138,7 +158,7 @@ async function removeReferencesFromPostgres(fileIds, pgPool) {
       pgClient.release();
     }
   } catch (error) {
-    console.error(`Error deleting embeddings from PostgreSQL:`, error.message);
+    logger.error(`Error deleting embeddings from PostgreSQL:`, error.message);
     return 0;
   }
 }
@@ -147,10 +167,10 @@ async function cleanupOldFiles(warningDate, cutoffDate) {
   try {
     // Connect to databases
     await mongoose.connect(uri);
-    console.log('Connected to MongoDB');
+    logger.info('Connected to MongoDB');
 
     const pgClient = await pgPool.connect();
-    console.log('Connected to PostgreSQL');
+    logger.info('Connected to PostgreSQL');
     pgClient.release();
 
     
@@ -159,6 +179,7 @@ async function cleanupOldFiles(warningDate, cutoffDate) {
 
     const endOfDay = new Date(warningDate);
     endOfDay.setHours(23, 59, 59, 999);
+
 
     // Find users to warn about file deletion
     const filesToWarn = await File.aggregate([
@@ -178,8 +199,8 @@ async function cleanupOldFiles(warningDate, cutoffDate) {
     ]);
 
 
-     console.log('\n=== Listing Users to warn Embeddings ===');
-     console.log(`Found ${filesToWarn.length} files created on ${warningDate.toISOString().split('T')[0]}`);
+     logger.info('\n=== Listing Users to warn Embeddings ===');
+     logger.info(`Found ${filesToWarn.length} files created on ${warningDate.toISOString().split('T')[0]}`);
     
      
     for (const file of filesToWarn){
@@ -187,9 +208,9 @@ async function cleanupOldFiles(warningDate, cutoffDate) {
         if(file.user.length > 0)
         {
           const user = file.user[0];
-          console.log("=== USER TO WARN ===");
-          console.log(user.email || user.name || user._id.toString());
-          console.log(file.filename);
+          logger.info("=== USER TO WARN ===");
+          logger.info(user.email || user.name || user._id.toString());
+          logger.info(file.filename);
         }
     }
      
@@ -198,26 +219,26 @@ async function cleanupOldFiles(warningDate, cutoffDate) {
     const oldFiles = await File.find({
       createdAt: { $lt: cutoffDate },
     }).lean();
-    console.log(`\nFound ${oldFiles.length} files created before ${cutoffDate.toISOString().split('T')[0]}`);
+    logger.info(`\nFound ${oldFiles.length} files created before ${cutoffDate.toISOString().split('T')[0]}`);
     
    
     const vectorizedFiles = oldFiles.filter(f => f.source === 'vectordb').map(f => f.file_id);
     // Delete PostgreSQL embeddings first
     if (vectorizedFiles.length > 0) {
-      console.log(`\n=== Cleaning ${vectorizedFiles.length} PostgreSQL Embeddings ===`);
+      logger.info(`\n=== Cleaning ${vectorizedFiles.length} PostgreSQL Embeddings ===`);
       await removeReferencesFromPostgres(vectorizedFiles, pgPool);
     }
 
     // // Clean up file references in messages
     const fileIds = oldFiles.map(f => f.file_id);
-    console.log(`\n=== Cleaning ${fileIds.length} files Message References ===`);
+    logger.info(`\n=== Cleaning ${fileIds.length} files Message References ===`);
     await removeFileReferencesFromMessages(fileIds);
 
     // Clean up PDF files from storage
     const localPDFPaths = oldFiles.filter(
       f => f.source === 'local' && f.type === 'application/pdf'
     ).map(f => f.filepath);
-    console.log(`\n=== Cleaning PDFs ${localPDFPaths.length} From storage ===`);
+    logger.info(`\n=== Cleaning PDFs ${localPDFPaths.length} From storage ===`);
     for (const filePath of localPDFPaths) {
       try {
         await deleteFileFromStorage(filePath, PDF_STORAGE_PATH);
@@ -225,7 +246,7 @@ async function cleanupOldFiles(warningDate, cutoffDate) {
         //const storageDeleted = await deleteFileFromStorage(file.filepath);
       
       } catch (error) {
-        console.error(`  ✗ Error deleting file:`, error.message);
+        logger.error(`  ✗ Error deleting file: ${filePath}`, error.message);
       }
     }
 
@@ -233,47 +254,47 @@ async function cleanupOldFiles(warningDate, cutoffDate) {
     const localImagePaths = oldFiles.filter(
       f => f.source === 'local' && f.type === 'image/png'
     ).map(f => f.filepath);
-    console.log(`\n=== Cleaning IMAGES ${localImagePaths.length} From storage ===`);
+    logger.info(`\n=== Cleaning IMAGES ${localImagePaths.length} From storage ===`);
     for (const filePath of localImagePaths) {
       try {
         // delete from storage
         await deleteFileFromStorage(filePath, IMAGE_STORAGE_PATH);      
         
       } catch (error) {
-        console.error(`  ✗ Error deleting file:`, error.message);
+        logger.error(`  ✗ Error deleting file: ${filePath}`, error.message);
       }
     }
 
     if(DRY_RUN === false)
     {
       // Finally delete from database    
-      console.log(`\n=== Deleting ${oldFiles.length} files from database ===`);
+      logger.info(`\n=== Deleting ${oldFiles.length} files from database ===`);
       const dbResult = await File.deleteMany({
         _id: { $in: oldFiles.map(f => f._id) } 
       });
 
-      console.log(` Deleted ${dbResult.deletedCount} files from database`);
+      logger.info(` Deleted ${dbResult.deletedCount} files from database`);
 
       if (dbResult.deletedCount !== oldFiles.length) {
-        console.log(`Warning: Expected to delete ${oldFiles.length} files, but only deleted ${dbResult.deletedCount}`);
+        logger.warn(`Warning: Expected to delete ${oldFiles.length} files, but only deleted ${dbResult.deletedCount}`);
       }
     }
 
 
   
-    console.log('\nOperation completed successfully');
+    logger.info('\nOperation completed successfully');
 
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Error:', error);
     throw error;
   } finally {
     await mongoose.connection.close();
     await pgPool.end();
-    console.log('Connections closed');
+    logger.info('Connections closed');
   }
 }
 
 // Execute
 (async () => {
   await cleanupOldFiles(warningDateObj, cutoffDateObj);
-})();
+})().catch(() => process.exit(1));
