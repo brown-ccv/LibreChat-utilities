@@ -79,14 +79,15 @@ console.log(`Warning date: ${warningDateObj.toISOString()} (${daysNumber - 10} d
 
 
 async function sendWarningEmail(user, daysUntilDeletion = 10) {
+  const fromEmail = user || 'camilo_diaz@brown.edu';
   const emailContent = {
     from: process.env.EMAIL_FROM || 'ccv-ai@brown.edu',
     //to: user.email,
-    to: 'camilo_diaz@brown.edu',
+    to: fromEmail,
     subject: 'Account Inactivity Warning - Action Required',
     html: `
       <h2>Account Inactivity Notice</h2>
-      <p>Hello ${user.name || 'User'},</p>
+      <p>Hello User,</p>
       <p>We noticed that your account has been inactive for an extended period.</p>
       <p><strong>Your account will be deleted in ${daysUntilDeletion} days if no activity is detected.</strong></p>
       <p>To keep your account active, simply log in at: <a href="${process.env.APP_URL || 'https://yourapp.com'}">${process.env.APP_URL || 'https://yourapp.com'}</a></p>
@@ -96,15 +97,15 @@ async function sendWarningEmail(user, daysUntilDeletion = 10) {
   };
 
   try {
-    if (DRY_RUN) {
-      console.log(`  [DRY-RUN] Would send email to: ${user.email}`);
-      return true;
-    }
+    // if (DRY_RUN) {
+    //   console.log(`  [DRY-RUN] Would send email to: ${fromEmail}`);
+    //   return true;
+    // }
     await transporter.sendMail(emailContent);
-    console.log(`  ✓ Email sent to: ${user.email}`);
+    console.log(`  ✓ Email sent to: ${fromEmail}`);
     return true;
   } catch (error) {
-    console.error(`  ✗ Failed to send email to ${user.email}:`, error.message);
+    console.error(`  ✗ Failed to send email to ${fromEmail}:`, error.message);
     return false;
   }
 }
