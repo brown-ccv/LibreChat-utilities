@@ -4,11 +4,34 @@ import pymongo
 from collections import defaultdict
 import argparse
 import sys
+import os
+
+_required_env_vars = [
+    "MONGO_URI",
+    "MONGO_DATABASE",
+    "MYSQL_HOST",
+    "MYSQL_USER",
+    "MYSQL_PASSWORD",
+    "MYSQL_DATABASE",
+    "MYSQL_PORT",
+]
+_missing = [var for var in _required_env_vars if not os.environ.get(var)]
+if _missing:
+    print(f"Error: Missing required environment variables: {', '.join(_missing)}")
+    sys.exit(1)
+
+mongo_uri = os.environ["MONGO_URI"]
+mongo_db = os.environ["MONGO_DATABASE"]
+mysql_host = os.environ["MYSQL_HOST"]
+mysql_user = os.environ["MYSQL_USER"]
+mysql_password = os.environ["MYSQL_PASSWORD"]
+mysql_db = os.environ["MYSQL_DATABASE"]
+mysql_port = os.environ["MYSQL_PORT"]
 
 # Database connections
 try:
     mongo_client = pymongo.MongoClient(
-        "mongodb://localhost:27017/",
+        mongo_uri,
         readPreference='secondary',  # Prefer reading from secondary node
     )
     # Test the connection
@@ -18,13 +41,13 @@ except Exception as e:
     print(f"Failed to connect to MongoDB: {e}")
     sys.exit(1)
 
-mongo_db = mongo_client["LibreChat"]
+#mongo_db = mongo_client["LibreChat"]
 mysql_config = {
-    'host': 'localhost',
-    'user': 'metrics',
-    'password': 'metrics',
-    'database': 'metrics',
-    'port': 3306
+    'host': mysql_host,
+    'user': mysql_user,
+    'password': mysql_password,
+    'database': mysql_db,
+    'port': mysql_port
 }
 
 def get_mysql_connection():
