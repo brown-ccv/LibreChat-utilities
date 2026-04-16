@@ -2,6 +2,10 @@ name: Run Historical Metrics Lirbechat
 on:  
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   REGISTRY: ghcr.io
   ## Image name

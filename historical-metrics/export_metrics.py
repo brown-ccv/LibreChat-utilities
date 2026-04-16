@@ -65,7 +65,7 @@ mysql_config = {
     'port': mysql_port
 }
 
-logger.debug(f"MySQL config: {mysql_config['host']} {mysql_config['user']} {mysql_config['database']}")
+logger.debug("MySQL configuration loaded")
 
 def get_mysql_connection():
     return mysql.connector.connect(**mysql_config)
