@@ -1,38 +1,78 @@
+import logging
 import mysql.connector
 from datetime import datetime, timedelta
 import pymongo
 from collections import defaultdict
 import argparse
 import sys
+import os
+from datetime import date
+
+_log_format = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+_log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"export_metrics_{date.today()}.log")
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+_stream_handler = logging.StreamHandler(sys.stdout)
+_stream_handler.setFormatter(_log_format)
+logger.addHandler(_stream_handler)
+
+_file_handler = logging.FileHandler(_log_file)
+_file_handler.setFormatter(_log_format)
+logger.addHandler(_file_handler)
+
+_required_env_vars = [
+    "MONGO_URI",
+    "MONGO_DATABASE",
+    "MYSQL_HOST",
+    "MYSQL_USER",
+    "MYSQL_PASSWORD",
+    "MYSQL_DATABASE",
+    "MYSQL_PORT",
+]
+_missing = [var for var in _required_env_vars if not os.environ.get(var)]
+if _missing:
+    logger.error(f"Missing required environment variables: {', '.join(_missing)}")
+    sys.exit(1)
+
+mongo_uri = os.environ["MONGO_URI"]
+mongo_db_name = os.environ["MONGO_DATABASE"]
+mysql_host = os.environ["MYSQL_HOST"]
+mysql_user = os.environ["MYSQL_USER"]
+mysql_password = os.environ["MYSQL_PASSWORD"]
+mysql_db = os.environ["MYSQL_DATABASE"]
+mysql_port = os.environ["MYSQL_PORT"]
 
 # Database connections
 try:
     mongo_client = pymongo.MongoClient(
-        "mongodb://localhost:27017/",
+        mongo_uri,
         readPreference='secondary',  # Prefer reading from secondary node
     )
     # Test the connection
     mongo_client.admin.command('ping')
-    print("Successfully connected to MongoDB in read-only mode")
+    mongo_db = mongo_client[mongo_db_name]
+    logger.info("Successfully connected to MongoDB in read-only mode")
 except Exception as e:
-    print(f"Failed to connect to MongoDB: {e}")
+    logger.error(f"Failed to connect to MongoDB: {e}")
     sys.exit(1)
-
-mongo_db = mongo_client["LibreChat"]
 mysql_config = {
-    'host': 'localhost',
-    'user': 'metrics',
-    'password': 'metrics',
-    'database': 'metrics',
-    'port': 3306
+    'host': mysql_host,
+    'user': mysql_user,
+    'password': mysql_password,
+    'database': mysql_db,
+    'port': mysql_port
 }
+
+logger.debug("MySQL configuration loaded")
 
 def get_mysql_connection():
     return mysql.connector.connect(**mysql_config)
 
 def calculate_daily_metrics(date):
     """Calculate metrics for a specific date"""
-    print(f"\nProcessing daily metrics for {date}")
+    logger.info(f"Processing daily metrics for {date}")
     start_time = datetime.combine(date, datetime.min.time())
     end_time = datetime.combine(date, datetime.max.time())
     
@@ -46,17 +86,14 @@ def calculate_daily_metrics(date):
         'createdAt': {'$gte': start_time, '$lte': end_time}
     }))
     
-    print(f"Found {len(messages)} messages and {len(conversations)} conversations for {date}")
+    logger.info(f"Found {len(messages)} messages and {len(conversations)} conversations for {date}")
     
     # Calculate metrics
     unique_users = len(set(msg.get('user') for msg in messages))
     total_messages = len(messages)
     total_conversations = len(conversations)
     
-    print(f"Metrics for {date}:")
-    print(f"- Unique users: {unique_users}")
-    print(f"- Total messages: {total_messages}")
-    print(f"- Total conversations: {total_conversations}")
+    logger.info(f"Metrics for {date}: unique_users={unique_users}, total_messages={total_messages}, total_conversations={total_conversations}")
     
     # Calculate model-specific metrics
     messages_by_model = defaultdict(int)
@@ -88,7 +125,7 @@ def calculate_daily_metrics(date):
     cursor = conn.cursor()
     
     try:
-        print(f"Storing daily metrics in MySQL for {date}")
+        logger.info(f"Storing daily metrics in MySQL for {date}")
         # Store daily users
         cursor.execute("""
             INSERT INTO daily_users (date, unique_users)
@@ -135,9 +172,9 @@ def calculate_daily_metrics(date):
             """, (date, model, count))
         
         conn.commit()
-        print(f"Successfully stored daily metrics for {date}")
+        logger.info(f"Successfully stored daily metrics for {date}")
     except Exception as e:
-        print(f"Error storing metrics for {date}: {e}")
+        logger.error(f"Error storing metrics for {date}: {e}")
         conn.rollback()
     finally:
         cursor.close()
@@ -147,7 +184,7 @@ def calculate_weekly_metrics(week_start):
     """Calculate weekly aggregated metrics"""
     # Skip if date is in the future
     if week_start > datetime.now().date():
-        print(f"Skipping weekly metrics for future date: {week_start}")
+        logger.warning(f"Skipping weekly metrics for future date: {week_start}")
         return
         
     week_end = week_start + timedelta(days=6)
@@ -178,7 +215,7 @@ def calculate_weekly_metrics(week_start):
         
         conn.commit()
     except Exception as e:
-        print(f"Error storing weekly metrics for {week_start}: {e}")
+        logger.error(f"Error storing weekly metrics for {week_start}: {e}")
         conn.rollback()
     finally:
         cursor.close()
@@ -188,7 +225,7 @@ def calculate_monthly_metrics(month_start):
     """Calculate monthly aggregated metrics"""
     # Skip if date is in the future
     if month_start > datetime.now().date():
-        print(f"Skipping monthly metrics for future date: {month_start}")
+        logger.warning(f"Skipping monthly metrics for future date: {month_start}")
         return
         
     if month_start.month == 12:
@@ -223,7 +260,7 @@ def calculate_monthly_metrics(month_start):
         
         conn.commit()
     except Exception as e:
-        print(f"Error storing monthly metrics for {month_start}: {e}")
+        logger.error(f"Error storing monthly metrics for {month_start}: {e}")
         conn.rollback()
     finally:
         cursor.close()
@@ -257,34 +294,42 @@ def clear_metrics_tables():
             cursor.execute(f"TRUNCATE TABLE {table}")
         
         conn.commit()
-        print("Successfully cleared all metrics tables")
+        logger.info("Successfully cleared all metrics tables")
     except Exception as e:
-        print(f"Error clearing metrics tables: {e}")
+        logger.error(f"Error clearing metrics tables: {e}")
         conn.rollback()
     finally:
         cursor.close()
         conn.close()
 
 def main():
-    parser = argparse.ArgumentParser(description='Calculate historical metrics for LibreChat')
-    parser.add_argument('start_date', type=str, help='Start date in YYYY-MM-DD format')
-    parser.add_argument('end_date', type=str, help='End date in YYYY-MM-DD format')
+    #parser = argparse.ArgumentParser(description='Calculate historical metrics for LibreChat')
+    #parser.add_argument('start_date', type=str, help='Start date in YYYY-MM-DD format')
+    #parser.add_argument('end_date', type=str, help='End date in YYYY-MM-DD format')
     
-    args = parser.parse_args()
+    #args = parser.parse_args()
     
     try:
-        start_date = parse_date(args.start_date)
-        end_date = parse_date(args.end_date)
+        #start_date = parse_date(args.start_date)
+        #end_date = parse_date(args.end_date)
+        
+        ## Only running queries for the current date
+        _current_date = date.today()
+        start_date = _current_date
+        end_date = _current_date
         
         if start_date > end_date:
             raise ValueError("Start date must be before end date")
         
         # Clear all metrics tables before starting
-        clear_metrics_tables()
+        ## We want to accumulate previous results. Commenting this line for now
+        # clear_metrics_tables()
+
+        logger.info(f"Processing date range: {start_date} to {end_date}")
         
         current_date = start_date
         while current_date <= end_date:
-            print(f"Calculating metrics for {current_date}")
+            logger.info(f"Calculating metrics for {current_date}")
             calculate_daily_metrics(current_date)
             
             # Calculate weekly metrics on Sundays
@@ -300,7 +345,7 @@ def main():
             current_date += timedelta(days=1)
             
     except ValueError as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         return 1
     
     return 0
