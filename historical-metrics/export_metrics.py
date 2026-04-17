@@ -9,7 +9,9 @@ import os
 from datetime import date
 
 _log_format = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-_log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"export_metrics_{date.today()}.log")
+_log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+os.makedirs(_log_dir, exist_ok=True)
+_log_file = os.path.join(_log_dir, f"export_metrics_{date.today()}.log")
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
