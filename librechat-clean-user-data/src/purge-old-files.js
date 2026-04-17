@@ -25,7 +25,7 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console(),
-    new winston.transports.File({ filename: `purge-old-files-${new Date().toISOString().split('T')[0] }.log` })
+    new winston.transports.File({ filename: `logs/purge-old-files-${new Date().toISOString().split('T')[0] }.log` })
   ]
 });
 
