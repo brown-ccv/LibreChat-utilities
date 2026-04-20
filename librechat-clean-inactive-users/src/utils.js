@@ -117,6 +117,7 @@ function buildUsersForWarningQuery(warningDate) {
 
 function buildUsersForDeletionQuery(cutoffDate) {
   return [
+    { $match: { updatedAt: { $lt: cutoffDate } } },
     ...buildActivityLookupPipeline(),
     buildDeletionMatchStage(cutoffDate)
   ];

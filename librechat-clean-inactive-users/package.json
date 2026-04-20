@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/purge-user-data-by-date.js",
-    "delete-user-data-by-date": "node src/purge-user-data-by-date.js"
+    "delete-inactive-users": "node src/purge-inactive-users.js"
   },
   "keywords": [
     "librechat",
@@ -19,6 +19,7 @@
     "axios": "^1.15.0",
     "mongoose": "^9.1.2",
     "nodemailer": "^8.0.5",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "winston": "^3.19.0"
   }
 }
