@@ -9,7 +9,7 @@ WORKDIR /app
 # Copy historial metrics script
 COPY budget_manager.py .
 COPY database_manager.py .
-
+COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
