@@ -1,4 +1,4 @@
-name: Run Historical Metrics Lirbechat
+name: Run Budget Manage Librechat
 on:  
   workflow_dispatch:
 
