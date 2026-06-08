@@ -5,6 +5,8 @@ import sys
 from datetime import date
 import smtplib
 from email.message import EmailMessage
+import requests
+import json
 
 _log_format = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 _log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
@@ -28,6 +30,9 @@ HARD_LIMIT = int(os.getenv("BUDGET_HARD_LIMIT", "10000"))
 SMTP_HOST = os.getenv("SMTP_HOST", "regmail.brown.edu")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "25"))
 SMTP_USER = os.getenv("SMTP_USER", "ccv-ai@brown.edu")
+
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
+
 TO_EMAIL = ["camilo_diaz@brown.edu",
             "maria_restrepo@brown.edu",
             "paul_stey@brown.edu",
@@ -48,6 +53,22 @@ def send_email(body):
     except Exception as exc:
         logger.error("Failed to send email: %s", exc, exc_info=True)
 
+def send_slack_message(message):
+    if not SLACK_WEBHOOK_URL:
+        logger.warning("SLACK_WEBHOOK_URL not set, skipping Slack notification.")
+        return
+    try:
+        response = requests.post(
+            SLACK_WEBHOOK_URL,
+            data=json.dumps({"text": message}),
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        logger.info("Slack message sent successfully.")
+    except Exception as exc:
+        logger.error("Failed to send Slack message: %s", exc, exc_info=True)
+
+
 def get_total_spend():
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -63,16 +84,20 @@ def get_total_spend():
 def main():
     try:
         total_spend = get_total_spend()
-        logger.info("Current total spend: %.2f", total_spend)
+        logger.info("Current total spend: $ %.2f", total_spend)
 
         if total_spend >= HARD_LIMIT:
-            logger.warning("Hard limit reached: %.2f", total_spend)
-            send_email(f"Hard limit reached: {total_spend:.2f}")
+            message = f"Hard limit reached: {total_spend:.2f}"
+            logger.warning("Hard limit reached: $ %.2f", total_spend)
+            #send_email(message)
+            send_slack_message(message)
         elif total_spend >= SOFT_LIMIT:
-            logger.warning("Soft limit reached: %.2f", total_spend)
-            send_email(f"Soft limit reached: {total_spend:.2f}")
+            message = f"Soft limit reached: {total_spend:.2f}"
+            logger.warning("Soft limit reached: $ %.2f", total_spend)
+            #send_email(message)
+            send_slack_message(message)
         else:
-            logger.info("Budget below thresholds: %.2f", total_spend)
+            logger.info("Budget below thresholds: $ %.2f", total_spend)
     except Exception as exc:
         logger.error("Budget check failed: %s", exc, exc_info=True)
         raise
