@@ -1,9 +1,5 @@
 import logging
 import mysql.connector
-from datetime import datetime, timedelta
-import pymongo
-from collections import defaultdict
-import argparse
 import sys
 import os
 from datetime import date
