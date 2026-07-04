@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Copy historial metrics script
 COPY monthly_spend_report.py .
+COPY pg_database_manager.py .
 
 # Install dependencies
 RUN pip install mysql-connector-python psycopg2-binary
