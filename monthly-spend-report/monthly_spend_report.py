@@ -69,6 +69,8 @@ def get_total_spend():
     return float(row[0])
 
 def insert_monthly_spend_in_db(month, year, total_spend):
+    conn = None
+    cursor = None
     try:
 
         ## Inset data in MYSQL
@@ -90,8 +92,10 @@ def insert_monthly_spend_in_db(month, year, total_spend):
         return 1
 
     finally:
-        cursor.close()
-        conn.close()
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
        
     logger.info(f"Successfully stored in monthly_spend")
 
