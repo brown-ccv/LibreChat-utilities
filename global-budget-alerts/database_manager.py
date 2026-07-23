@@ -20,7 +20,7 @@ from psycopg2.extras import RealDictCursor
 
 def _connection_params_from_env() -> Dict[str, Any]:
 	"""Build psycopg2 connection parameters from environment variables."""
-	database_url = os.getenv("PROD_DATABASE_URL")
+	database_url = os.getenv("PROD_RO_DATABASE_URL")
 	if database_url:
 		return {"dsn": database_url}
 
